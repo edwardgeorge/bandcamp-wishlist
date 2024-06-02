@@ -9,3 +9,7 @@ requests = "^2.27.1"
 browser-cookie3 = "^0.14.0"
 
 [tool.poetry.dev-dependencies]
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.4.7"
+
