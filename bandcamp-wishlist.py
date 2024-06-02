@@ -221,14 +221,16 @@ class Account:
             response.raise_for_status()
             return json.loads(response.text)
 
-    def _req_wishlist(self, count: int, last_token: str):
-        return self._api_post(WISHLIST_POST_URL, count=count, last_token=last_token)
-
     def get_wishlist(self, count: int = 20) -> List[dict]:
+        return self._req_loop(
+            WISHLIST_POST_URL, count=count, initial_token=default_token()
+        )
+
+    def _req_loop(self, url: str, count: int, initial_token: str):
         r = []
-        tok = default_token()
+        tok = initial_token
         while True:
-            d = self._req_wishlist(count=count, last_token=tok)
+            d = self._api_post(url, count=count, last_token=tok)
             if "error" in d:
                 raise Exception("Error from api request")
             items = d["items"]
