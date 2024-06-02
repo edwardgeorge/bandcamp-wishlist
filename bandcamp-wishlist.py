@@ -28,6 +28,35 @@ SUPPORTED_BROWSERS = [
     'opera',
     'edge'
 ]
+GENRES = [
+ {'id': 10, 'label': 'electronic', 'slug': 'electronic'},
+ {'id': 23, 'label': 'rock', 'slug': 'rock'},
+ {'id': 18, 'label': 'metal', 'slug': 'metal'},
+ {'id': 2, 'label': 'alternative', 'slug': 'alternative'},
+ {'id': 14, 'label': 'hip-hop/rap', 'slug': 'hip-hop-rap'},
+ {'id': 11, 'label': 'experimental', 'slug': 'experimental'},
+ {'id': 20, 'label': 'punk', 'slug': 'punk'},
+ {'id': 12, 'label': 'folk', 'slug': 'folk'},
+ {'id': 19, 'label': 'pop', 'slug': 'pop'},
+ {'id': 3, 'label': 'ambient', 'slug': 'ambient'},
+ {'id': 24, 'label': 'soundtrack', 'slug': 'soundtrack'},
+ {'id': 26, 'label': 'world', 'slug': 'world'},
+ {'id': 15, 'label': 'jazz', 'slug': 'jazz'},
+ {'id': 1, 'label': 'acoustic', 'slug': 'acoustic'},
+ {'id': 13, 'label': 'funk', 'slug': 'funk'},
+ {'id': 21, 'label': 'r&b/soul', 'slug': 'r-b-soul'},
+ {'id': 9, 'label': 'devotional', 'slug': 'devotional'},
+ {'id': 5, 'label': 'classical', 'slug': 'classical'},
+ {'id': 22, 'label': 'reggae', 'slug': 'reggae'},
+ {'id': 27, 'label': 'podcasts', 'slug': 'podcasts'},
+ {'id': 7, 'label': 'country', 'slug': 'country'},
+ {'id': 25, 'label': 'spoken word', 'slug': 'spoken-word'},
+ {'id': 6, 'label': 'comedy', 'slug': 'comedy'},
+ {'id': 4, 'label': 'blues', 'slug': 'blues'},
+ {'id': 16, 'label': 'kids', 'slug': 'kids'},
+ {'id': 28, 'label': 'audiobooks', 'slug': 'audiobooks'},
+ {'id': 17, 'label': 'latin', 'slug': 'latin'}
+]
 
 
 def main():
@@ -97,6 +126,22 @@ def main():
         default=False,
         dest='is_purchasable',
     )
+    ract.add_argument(
+        '--min-also-collected',
+        type=int,
+        dest='min_also_collected',
+    )
+    ract.add_argument(
+        '--max-also-collected',
+        type=int,
+        dest='max_also_collected',
+    )
+    ract.add_argument(
+        '--genre', '-g',
+        type=str,
+        default=None,
+        choices=[i['slug'] for i in GENRES],
+    )
 
 
     args = parser.parse_args()
@@ -131,6 +176,15 @@ def main():
             filters.append(lambda i, j: j['download_available'] is True)
         if args.is_purchasable:
             filters.append(lambda i, j: j['is_purchasable'] is True)
+        if args.min_also_collected:
+            filters.append(lambda i, j: j['also_collected_count'] >= args.min_also_collected)
+        if args.max_also_collected:
+            filters.append(lambda i, j: j['also_collected_count'] <= args.max_also_collected)
+        if args.genre is not None:
+            gid = {i['slug']: i['id'] for i in GENRES}[args.genre]
+            filters.append(lambda i, j: j['genre_id'] == gid)
+        # TODO: add preorder filter. add tracks filters. date filter
+        # TODO: add filter based on when fanned artist
 
         if filters:
             filtered = [j for (i, j) in enumerate(wl) if all(f(i, j) for f in filters)]
