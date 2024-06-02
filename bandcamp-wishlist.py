@@ -59,6 +59,26 @@ def main():
         type=Path,
         required=True
     )
+    g = ract.add_mutually_exclusive_group()
+    g.add_argument(
+        '--first',
+        type=int,
+        metavar='N',
+        help='Limit to first N items',
+    )
+    g.add_argument(
+        '--after-first',
+        type=int,
+        dest='after_first',
+        metavar='N',
+        help='Limit to items after first N',
+    )
+    g.add_argument(
+        '--last',
+        type=int,
+        metavar='N',
+        help='Limit to last N items',
+    )
 
 
     args = parser.parse_args()
@@ -79,6 +99,12 @@ def main():
             wl = json.load(f)
         print("loaded {} items from {}".format(len(wl), args.input))
 
+        if args.first:
+            wl = wl[:args.first]
+        if args.after_first:
+            wl = wl[args.after_first:]
+        if args.last:
+            wl = wl[len(wl) - args.last:]
         chosen = random.choice(wl)
         print("Opening: {} '{}': {}\n(added on {})".format(
             chosen['band_name'],
