@@ -79,6 +79,12 @@ def main():
         metavar='N',
         help='Limit to last N items',
     )
+    ract.add_argument(
+        '--only-albums',
+        action='store_true',
+        default=False,
+        dest='only_albums',
+    )
 
 
     args = parser.parse_args()
@@ -99,13 +105,24 @@ def main():
             wl = json.load(f)
         print("loaded {} items from {}".format(len(wl), args.input))
 
+        filters = []
         if args.first:
-            wl = wl[:args.first]
+            filters.append(lambda i, j: i < args.first)
         if args.after_first:
-            wl = wl[args.after_first:]
+            filters.append(lambda i, j: i >= args.after_first)
         if args.last:
-            wl = wl[len(wl) - args.last:]
-        chosen = random.choice(wl)
+            ix = len(wl) - args.last
+            filters.append(lambda i, j: i >= ix)
+        if args.only_albums:
+            filters.append(lambda i, j: j['item_type'] == 'album')
+
+        if filters:
+            filtered = [j for (i, j) in enumerate(wl) if all(f(i, j) for f in filters)]
+            print("applied {} filters, now {} items".format(len(filters), len(filtered)))
+        else:
+            filtered = wl
+
+        chosen = random.choice(filtered)
         print("Opening: {} '{}': {}\n(added on {})".format(
             chosen['band_name'],
             chosen['item_title'],
