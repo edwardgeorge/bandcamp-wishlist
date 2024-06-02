@@ -85,6 +85,18 @@ def main():
         default=False,
         dest='only_albums',
     )
+    ract.add_argument(
+        '--download-available',
+        action='store_true',
+        default=False,
+        dest='download_available',
+    )
+    ract.add_argument(
+        '--is-purchasable',
+        action='store_true',
+        default=False,
+        dest='is_purchasable',
+    )
 
 
     args = parser.parse_args()
@@ -115,6 +127,10 @@ def main():
             filters.append(lambda i, j: i >= ix)
         if args.only_albums:
             filters.append(lambda i, j: j['item_type'] == 'album')
+        if args.download_available:
+            filters.append(lambda i, j: j['download_available'] is True)
+        if args.is_purchasable:
+            filters.append(lambda i, j: j['is_purchasable'] is True)
 
         if filters:
             filtered = [j for (i, j) in enumerate(wl) if all(f(i, j) for f in filters)]
