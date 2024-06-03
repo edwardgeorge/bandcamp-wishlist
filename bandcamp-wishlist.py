@@ -201,6 +201,7 @@ def main():
         dest="followed_before",
         metavar="DATE",
     )
+    ract.add_argument("--no-price", action="store_true", default=False, dest="no_price")
 
     args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose > 0 else logging.INFO)
@@ -293,6 +294,10 @@ def main():
                 lambda i, j: followed_before(
                     j["band_id"], follow_times, args.followed_before
                 )
+            )
+        if args.no_price:
+            filters.append(
+                lambda i, j: j["is_set_price"] is False and j["price"] == 0.0
             )
 
         # TODO: add preorder filter. add tracks filters.
