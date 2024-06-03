@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import browser_cookie3
+import dateparser
 import requests
 from bs4 import BeautifulSoup, SoupStrainer
 
@@ -123,6 +124,16 @@ def main():
         metavar="N",
         help="Limit to last N items",
     )
+    g.add_argument(
+        "--before",
+        type=parse_date,
+        metavar="DATE",
+    )
+    g.add_argument(
+        "--since",
+        type=parse_date,
+        metavar="DATE",
+    )
     ract.add_argument(
         "--only-albums",
         action="store_true",
@@ -177,6 +188,19 @@ def main():
         default=False,
         dest="no_followed",
     )
+    # next 2 imply --only-followed
+    follows.add_argument(
+        "--followed-since",
+        type=parse_date,
+        dest="followed_since",
+        metavar="DATE",
+    )
+    follows.add_argument(
+        "--followed-before",
+        type=parse_date,
+        dest="followed_before",
+        metavar="DATE",
+    )
 
     args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose > 0 else logging.INFO)
@@ -211,9 +235,11 @@ def main():
                 bands = json.load(f)
             print("loaded {} bands from {}".format(len(bands), args.bands))
             band_ids = {*(i["band_id"] for i in bands)}
+            follow_times = {i["band_id"]: parse_date(i["date_followed"]) for i in bands}
         else:
             bands = None
             band_ids = {*[]}
+            follow_times = {}
 
         filters = []
         if args.first:
@@ -223,6 +249,10 @@ def main():
         if args.last:
             ix = len(wl) - args.last
             filters.append(lambda i, j: i >= ix)
+        if args.before:
+            filters.append(lambda i, j: parse_date(j["added"]) < args.before)
+        if args.since:
+            filters.append(lambda i, j: parse_date(j["added"]) >= args.since)
         if args.only_albums:
             filters.append(lambda i, j: j["item_type"] == "album")
         if args.download_available:
@@ -248,6 +278,22 @@ def main():
             if bands is None:
                 return parser.error("'--no-followed' requires '--bands'")
             filters.append(lambda i, j: j["band_id"] not in band_ids)
+        if args.followed_since:
+            if bands is None:
+                return parser.error("'--followed-since' requires '--bands'")
+            filters.append(
+                lambda i, j: followed_since(
+                    j["band_id"], follow_times, args.followed_since
+                )
+            )
+        if args.followed_before:
+            if bands is None:
+                return parser.error("'--followed-before' requires '--bands'")
+            filters.append(
+                lambda i, j: followed_before(
+                    j["band_id"], follow_times, args.followed_before
+                )
+            )
 
         # TODO: add preorder filter. add tracks filters. date filter
         # TODO: add filter based on when fanned artist
@@ -270,6 +316,30 @@ def main():
             )
         )
         webbrowser.open_new_tab(chosen["item_url"])
+
+
+def parse_date(datestr: str):
+    return dateparser.parse(
+        datestr, settings={"RETURN_AS_TIMEZONE_AWARE": True, "TO_TIMEZONE": "UTC"}
+    )
+
+
+def followed_since(band_id, follow_times, since):
+    try:
+        t = follow_times[band_id]
+    except KeyError:
+        return False
+    else:
+        return t >= since
+
+
+def followed_before(band_id, follow_times, before):
+    try:
+        t = follow_times[band_id]
+    except KeyError:
+        return False
+    else:
+        return t < before
 
 
 @dataclass
