@@ -24,6 +24,41 @@ Then run to open a random album in your browser:
 bandcamp-wishlist.py random -i wishlist.json
 ```
 
+The `random` subcommand also supports a number of useful filters to narrow-down the random space, such as only picking 'name your price' items:
+```
+bandcamp-wishlist.py random -i wishlist.json --no-price
+```
+
+The full list of filters can be seen with the `--help` option:
+
+```
+usage: bandcamp-wishlist.py random [-h] --input INPUT [--first N | --after-first N | --last N | --before DATE | --since DATE] [--only-albums] [--download-available] [--is-purchasable] [--min-also-collected MIN_ALSO_COLLECTED]
+                                   [--max-also-collected MAX_ALSO_COLLECTED]
+                                   [--genre {electronic,rock,metal,alternative,hip-hop-rap,experimental,punk,folk,pop,ambient,soundtrack,world,jazz,acoustic,funk,r-b-soul,devotional,classical,reggae,podcasts,country,spoken-word,comedy,blues,kids,audiobooks,latin}]
+                                   [--bands BANDS_JSON] [--only-followed | --no-followed | --followed-since DATE | --followed-before DATE] [--no-price]
+
+options:
+  -h, --help            show this help message and exit
+  --input INPUT, -i INPUT
+  --first N             Limit to first N items
+  --after-first N       Limit to items after first N
+  --last N              Limit to last N items
+  --before DATE
+  --since DATE
+  --only-albums
+  --download-available
+  --is-purchasable
+  --min-also-collected MIN_ALSO_COLLECTED
+  --max-also-collected MAX_ALSO_COLLECTED
+  --genre {electronic,rock,metal,alternative,hip-hop-rap,experimental,punk,folk,pop,ambient,soundtrack,world,jazz,acoustic,funk,r-b-soul,devotional,classical,reggae,podcasts,country,spoken-word,comedy,blues,kids,audiobooks,latin}, -g {electronic,rock,metal,alternative,hip-hop-rap,experimental,punk,folk,pop,ambient,soundtrack,world,jazz,acoustic,funk,r-b-soul,devotional,classical,reggae,podcasts,country,spoken-word,comedy,blues,kids,audiobooks,latin}
+  --bands BANDS_JSON, -b BANDS_JSON
+  --only-followed
+  --no-followed
+  --followed-since DATE
+  --followed-before DATE
+  --no-price
+```
+
 ## Known Issues
 
 ### Running the script on WSL crashes with a `DBUS_SESSION_BUS_ADDRESS` error
