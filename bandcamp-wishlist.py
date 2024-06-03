@@ -295,8 +295,7 @@ def main():
                 )
             )
 
-        # TODO: add preorder filter. add tracks filters. date filter
-        # TODO: add filter based on when fanned artist
+        # TODO: add preorder filter. add tracks filters.
 
         if filters:
             filtered = [j for (i, j) in enumerate(wl) if all(f(i, j) for f in filters)]
