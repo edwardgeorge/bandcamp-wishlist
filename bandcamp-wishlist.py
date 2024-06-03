@@ -10,7 +10,7 @@ import webbrowser
 from argparse import ArgumentParser
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import browser_cookie3
 import requests
@@ -20,6 +20,7 @@ log = logging.getLogger()
 
 USER_URL = "https://bandcamp.com/{}"
 WISHLIST_POST_URL = "https://bandcamp.com/api/fancollection/1/wishlist_items"
+BANDS_POST_URL = "https://bandcamp.com/api/fancollection/1/following_bands"
 SUPPORTED_BROWSERS = ["firefox", "chrome", "chromium", "brave", "opera", "edge"]
 GENRES = [
     {"id": 10, "label": "electronic", "slug": "electronic"},
@@ -57,6 +58,28 @@ def main():
     parser.add_argument("--verbose", "-v", action="count", default=0)
     subp = parser.add_subparsers(dest="action", required=True)
     dl = subp.add_parser("download")
+    dl.add_argument(
+        "--browser",
+        "-b",
+        type=str,
+        default="firefox",
+        choices=SUPPORTED_BROWSERS,
+        help='The browser whose cookies to use for accessing bandcamp. Defaults to "firefox"',
+    )
+    dl.add_argument(
+        "--cookies",
+        "-c",
+        type=Path,
+        help="Path to a cookie file. First, we will try to use it as a mozilla cookie jar. If that fails, it'll be used as the path for your given browser's cookie store.",
+    )
+    dl.add_argument(
+        "--output",
+        "-o",
+        type=Path,
+    )
+    dl.add_argument("username")
+
+    dl = subp.add_parser("download-bands")
     dl.add_argument(
         "--browser",
         "-b",
@@ -135,6 +158,25 @@ def main():
         default=None,
         choices=[i["slug"] for i in GENRES],
     )
+    ract.add_argument(
+        "--bands",
+        "-b",
+        type=Path,
+        metavar="BANDS_JSON",
+    )
+    follows = ract.add_mutually_exclusive_group()
+    follows.add_argument(
+        "--only-followed",
+        action="store_true",
+        default=False,
+        dest="only_followed",
+    )
+    follows.add_argument(
+        "--no-followed",
+        action="store_true",
+        default=False,
+        dest="no_followed",
+    )
 
     args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose > 0 else logging.INFO)
@@ -149,10 +191,29 @@ def main():
                 json.dump(wl, f)
         else:
             print(json.dumps(wl, indent=4))
+    elif args.action == "download-bands":
+        acc, d = get_user(args.username, args.browser, args.cookies)
+        init, tok, ic = initial_bands(d)
+        r = init + acc._req_loop(
+            BANDS_POST_URL, count=ic, initial_token=tok, result_key="followeers"
+        )
+        if args.output is not None:
+            with args.output.open("w") as f:
+                json.dump(r, f)
+        else:
+            print(json.dumps(r, indent=4))
     elif args.action == "random":
         with args.input.open() as f:
             wl = json.load(f)
         print("loaded {} items from {}".format(len(wl), args.input))
+        if args.bands:
+            with args.bands.open() as f:
+                bands = json.load(f)
+            print("loaded {} bands from {}".format(len(bands), args.bands))
+            band_ids = {*(i["band_id"] for i in bands)}
+        else:
+            bands = None
+            band_ids = {*[]}
 
         filters = []
         if args.first:
@@ -179,6 +240,15 @@ def main():
         if args.genre is not None:
             gid = {i["slug"]: i["id"] for i in GENRES}[args.genre]
             filters.append(lambda i, j: j["genre_id"] == gid)
+        if args.only_followed:
+            if bands is None:
+                return parser.error("'--only-followed' requires '--bands'")
+            filters.append(lambda i, j: j["band_id"] in band_ids)
+        if args.no_followed:
+            if bands is None:
+                return parser.error("'--no-followed' requires '--bands'")
+            filters.append(lambda i, j: j["band_id"] not in band_ids)
+
         # TODO: add preorder filter. add tracks filters. date filter
         # TODO: add filter based on when fanned artist
 
@@ -223,17 +293,23 @@ class Account:
 
     def get_wishlist(self, count: int = 20) -> List[dict]:
         return self._req_loop(
-            WISHLIST_POST_URL, count=count, initial_token=default_token()
+            WISHLIST_POST_URL,
+            count=count,
+            initial_token=default_token(),
+            result_key="items",
         )
 
-    def _req_loop(self, url: str, count: int, initial_token: str):
+    def _req_loop(self, url: str, count: int, initial_token: str, result_key: str):
         r = []
         tok = initial_token
         while True:
             d = self._api_post(url, count=count, last_token=tok)
             if "error" in d:
                 raise Exception("Error from api request")
-            items = d["items"]
+            try:
+                items = d[result_key]
+            except KeyError:
+                raise Exception(f"No '{result_key}' found in {d}")
             r.extend(items)
             tok = d["last_token"]
             log.debug(
@@ -250,6 +326,16 @@ class Account:
 
 def default_token() -> str:
     return "{}::a::".format(int(time.time()))
+
+
+def initial_bands(data) -> Tuple[List[Any], str, int]:
+    d = data["following_bands_data"]
+    r = hydrate_initial(d["pending_sequence"], data["item_cache"]["following_bands"])
+    return (r, d["last_token"], d["item_count"] - len(r))
+
+
+def hydrate_initial(sequence: List[str], cache: Dict[str, Any]) -> List[Any]:
+    return [cache[i] for i in sequence]
 
 
 def get_user(
