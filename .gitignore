@@ -1,2 +1,5 @@
 bandcamp_downloader.egg-info/
 build/
+wishlist.json
+bands.json
+
